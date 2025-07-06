@@ -14,9 +14,17 @@ import {
   SelectValue,
 } from "./ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { AlertCircleIcon, BookIcon, LightbulbIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  BookIcon,
+  LightbulbIcon,
+  Loader2,
+  PlayIcon,
+} from "lucide-react";
 import Editor from "@monaco-editor/react";
 import Image from "next/image";
+import toast from "react-hot-toast";
+import { Button } from "./ui/button";
 
 function CodeEditor() {
   const [selectedQuestion, setSelectedQuestion] = useState(CODING_QUESTIONS[0]);
@@ -24,6 +32,28 @@ function CodeEditor() {
     LANGUAGES[0].id
   );
   const [code, setCode] = useState(selectedQuestion.starterCode[language]);
+
+  const [output, setOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+
+  const handleRunCode = async () => {
+    setIsRunning(true);
+    try {
+      const res = await fetch("/api/run-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, language }),
+      });
+
+      const data = await res.json();
+      setOutput(data.output || data.error || "No output");
+    } catch (err) {
+      console.log(err);
+      toast.error("Failed to run code");
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
   const handleQuestionChange = (questionId: string) => {
     const question = CODING_QUESTIONS.find((q) => q.id === questionId)!;
@@ -191,25 +221,55 @@ function CodeEditor() {
 
       {/* CODE EDITOR */}
       <ResizablePanel defaultSize={60} maxSize={100}>
-        <div className="h-full relative">
-          <Editor
-            height={"100%"}
-            defaultLanguage={language}
-            language={language}
-            theme="vs-dark"
-            value={code}
-            onChange={(value) => setCode(value || "")}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 18,
-              lineNumbers: "on",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              padding: { top: 16, bottom: 16 },
-              wordWrap: "on",
-              wrappingIndent: "indent",
-            }}
-          />
+        <div className="h-full relative flex flex-col">
+          {/* CODE EDITOR */}
+          <div className="flex-1 relative">
+            <Editor
+              height="100%"
+              defaultLanguage={language}
+              language={language}
+              theme="vs-dark"
+              value={code}
+              onChange={(value) => setCode(value || "")}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 18,
+                lineNumbers: "on",
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: { top: 16, bottom: 16 },
+                wordWrap: "on",
+                wrappingIndent: "indent",
+              }}
+            />
+            <div className="absolute top-2 right-4 z-10">
+              <Button
+                onClick={handleRunCode}
+                disabled={isRunning}
+                className="gap-2"
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="animate-spin h-4 w-4" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <PlayIcon className="h-4 w-4" />
+                    Run Code
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* ✅ OUTPUT HIỂN THỊ RÕ RÀNG */}
+          {output && (
+            <div className="bg-black text-white p-4 font-mono text-sm border-t border-gray-700 max-h-[300px] overflow-auto">
+              <strong className="text-green-400">Output:</strong>
+              <pre className="whitespace-pre-wrap mt-1">{output}</pre>
+            </div>
+          )}
         </div>
       </ResizablePanel>
     </ResizablePanelGroup>
